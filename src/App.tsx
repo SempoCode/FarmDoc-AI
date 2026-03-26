@@ -20,7 +20,8 @@ import {
   X,
   Mail,
   Lock,
-  LayoutDashboard
+  LayoutDashboard,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -68,6 +69,9 @@ interface Translation {
   footer: string;
   crops: Record<string, string>;
   examples: string[];
+  generalQuestion: string;
+  generalPlaceholder: string;
+  generalExamples: string[];
   login: string;
   signup: string;
   logout: string;
@@ -116,13 +120,22 @@ const translations: Record<Language, Translation> = {
       Beans: "Beans",
       Matooke: "Matooke",
       Rice: "Rice",
-      Tomatoes: "Tomatoes"
+      Tomatoes: "Tomatoes",
+      General: "General Farming"
     },
+    generalQuestion: "Ask General Question",
+    generalPlaceholder: "Ask anything about farming (e.g., best time to plant, soil health, irrigation)...",
     examples: [
       "My maize has yellow leaves",
       "Small holes in my bean leaves",
       "Cassava leaves are curling",
       "Tomatoes have black spots"
+    ],
+    generalExamples: [
+      "Best time to plant maize in Uganda?",
+      "How to improve soil fertility naturally?",
+      "Simple irrigation for small farms",
+      "How to control armyworms?"
     ]
   },
   sw: {
@@ -158,13 +171,22 @@ const translations: Record<Language, Translation> = {
       Beans: "Maharagwe",
       Matooke: "Ndizi (Matooke)",
       Rice: "Mpunga",
-      Tomatoes: "Nyanya"
+      Tomatoes: "Nyanya",
+      General: "Kilimo cha Jumla"
     },
+    generalQuestion: "Uliza Swali la Jumla",
+    generalPlaceholder: "Uliza chochote kuhusu kilimo (mfano, wakati mzuri wa kupanda, afya ya udongo, umwagiliaji)...",
     examples: [
       "Mahindi yangu yana majani ya manjano",
       "Mashimo madogo kwenye majani ya maharagwe",
       "Majani ya muhogo yanajikunja",
       "Nyanya zina madoa meusi"
+    ],
+    generalExamples: [
+      "Wakati mzuri wa kupanda mahindi?",
+      "Jinsi ya kuboresha rutuba ya udongo?",
+      "Umwagiliaji rahisi kwa mashamba madogo",
+      "Jinsi ya kudhibiti viwavi jeshi?"
     ]
   },
   lug: {
@@ -200,13 +222,22 @@ const translations: Record<Language, Translation> = {
       Beans: "Bijanjalo",
       Matooke: "Matooke",
       Rice: "Muceere",
-      Tomatoes: "Nyanya"
+      Tomatoes: "Nyanya",
+      General: "Ebyobulimi ebirala"
     },
+    generalQuestion: "Buuza ekibuuzo kyonna",
+    generalPlaceholder: "Buuza ekibuuzo kyonna ku byobulimi (okugeza, ebiseera ebirungi eby'okusiga, ettaka, okufukirira)...",
     examples: [
       "Kasooli wange alina amabala ga kyenvu",
       "Ebituli ebitono mu bikoola by'ebijanjalo",
       "Ebikoola bya muwogo byefunya",
       "Nyanya zirina amabala amaddugavu"
+    ],
+    generalExamples: [
+      "Ebiseera ebirungi eby'okusiga kasooli?",
+      "Engeri y'okwongera obugimu mu ttaka?",
+      "Okufukirira okwangu ku nnimiro entono",
+      "Engeri y'okulwanyisa ebinyira?"
     ]
   }
 };
@@ -364,7 +395,15 @@ export default function App() {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       const model = "gemini-3-flash-preview";
       
-      const systemPrompt = `You are FarmDoc AI helping East African farmers with crop problems. Respond in simple language. If the user writes in Swahili, respond in Swahili. If the user writes in Luganda, respond in Luganda. Structure advice as Diagnosis, Immediate Action, Treatment Options, prioritizing low-cost organic options, Prevention, and When to seek expert help. Focus on maize, cassava, beans, matooke, rice, and tomatoes. End with FarmDoc AI: Growing smarter together. Use Markdown for formatting. Use bold headers for sections.`;
+      const systemPrompt = `You are FarmDoc AI helping East African farmers with crop problems and general farming questions. Respond in simple language. If the user writes in Swahili, respond in Swahili. If the user writes in Luganda, respond in Luganda. 
+
+For crop-specific problems: Structure advice as Diagnosis, Immediate Action, Treatment Options (prioritizing low-cost organic options), Prevention, and When to seek expert help. 
+
+For general farming questions: Provide clear, practical, and actionable advice relevant to East African agriculture. 
+
+Focus on maize, cassava, beans, matooke, rice, and tomatoes, but handle general questions about soil, weather, irrigation, and livestock if asked. 
+
+End with FarmDoc AI: Growing smarter together. Use Markdown for formatting. Use bold headers for sections.`;
 
       const response = await ai.models.generateContent({
         model,
@@ -568,8 +607,19 @@ export default function App() {
         {view === 'home' && (
           <>
             {/* Hero Section */}
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-4">
               <p className="text-green-800 font-medium opacity-90">{t.tagline}</p>
+              <button
+                onClick={() => {
+                  setCrop('General');
+                  const textarea = document.querySelector('textarea');
+                  textarea?.focus();
+                }}
+                className="bg-green-100 text-green-700 px-6 py-2 rounded-full font-bold text-sm border-2 border-green-200 hover:bg-green-200 transition-all flex items-center gap-2 mx-auto shadow-sm"
+              >
+                <HelpCircle size={18} />
+                {t.generalQuestion}
+              </button>
             </div>
 
             {/* Input Form */}
@@ -598,12 +648,12 @@ export default function App() {
 
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-green-800 uppercase tracking-widest">
-                    {t.problemPlaceholder.split('(')[0]}
+                    {crop === 'General' ? t.generalQuestion : t.problemPlaceholder.split('(')[0]}
                   </label>
                   <textarea
                     value={problem}
                     onChange={(e) => setProblem(e.target.value)}
-                    placeholder={t.problemPlaceholder}
+                    placeholder={crop === 'General' ? t.generalPlaceholder : t.problemPlaceholder}
                     className="w-full h-32 p-4 rounded-2xl border-2 border-green-100 focus:border-green-500 focus:ring-0 transition-all text-lg resize-none bg-green-50/30"
                   />
                 </div>
@@ -630,7 +680,7 @@ export default function App() {
                 {t.exampleQuestions}
               </h2>
               <div className="flex flex-wrap gap-2">
-                {t.examples.map((ex, i) => (
+                {(crop === 'General' ? t.generalExamples : t.examples).map((ex, i) => (
                   <button
                     key={i}
                     onClick={() => {
