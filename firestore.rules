@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (uid)
+    // Fields:
+    //   - uid: string (required) - User's unique ID
+    //   - email: string (required) - User's email
+    //   - displayName: string (optional) - User's display name
+    //   - photoURL: string (optional) - User's photo URL
+    //   - createdAt: timestamp (optional) - Account creation time
+    //
+    // Collection: consultations
+    // Document ID: consultationId (auto-generated)
+    // Fields:
+    //   - id: string (required) - Consultation ID
+    //   - uid: string (required) - Owner's UID
+    //   - crop: string (required) - Crop type
+    //   - problem: string (required) - Problem description
+    //   - response: string (required) - AI response
+    //   - timestamp: number (required) - Epoch timestamp
+    //   - language: string (required) - 'en' or 'sw'
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidConsultation(data) {
+      return data.keys().hasAll(['uid', 'crop', 'problem', 'response', 'timestamp', 'language']) &&
+             data.uid == request.auth.uid &&
+             data.crop is string &&
+             data.problem is string &&
+             data.response is string &&
+             data.timestamp is number &&
+             data.language in ['en', 'sw'];
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "ssempebwapaulbct@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.uid == resource.data.uid;
+    }
+
+    match /consultations/{consultationId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidConsultation(request.resource.data);
+      allow update: if false; // Consultations are immutable
+      allow delete: if isDocOwner();
+    }
+  }
+}
